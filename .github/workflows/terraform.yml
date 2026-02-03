@@ -1,4 +1,4 @@
-name: Deploy API (Lambda) + Terraform (infra repo)
+name: Deploy Lambda (tarefas)
 
 on:
   workflow_dispatch:
@@ -11,28 +11,14 @@ permissions:
 
 env:
   AWS_REGION: sa-east-1
-
-  # Esses 4 têm que bater com o que você usou quando provisionou a infra originalmente
-  TF_VAR_project: todo
-  TF_VAR_env: dev
-  TF_VAR_aws_region: sa-east-1
-  TF_VAR_artifacts_bucket: todo-calabrial-artifacts-123
+  ARTIFACTS_BUCKET: gestao-tarefas-dev-artifacts-calabria1-sa-east-1
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout todo-api
+      - name: Checkout código da API
         uses: actions/checkout@v4
-
-      # Checkout do repo público NÃO precisa token.
-      - name: Checkout todo-infra (public repo)
-        uses: actions/checkout@v4
-        with:
-          repository: calabria1/todo-infra
-          path: todo-infra
-          fetch-depth: 1
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -45,7 +31,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build Lambda zip (tasks)
+      - name: Build Lambda zip (tarefas)
         run: |
           set -euo pipefail
 
@@ -53,24 +39,20 @@ jobs:
           echo "ARTIFACT_VERSION=$ARTIFACT_VERSION" >> $GITHUB_ENV
 
           ROOT="$(pwd)"
-          SRC_DIR="$ROOT/todo-api/services/tasks/src"
-          REQ_FILE="$ROOT/todo-api/services/tasks/requirements.txt"
+          SRC_DIR="$ROOT/services/tasks/src"
+          REQ_FILE="$ROOT/services/tasks/requirements.txt"
           OUT_DIR="$ROOT/build"
-          PKG_DIR="$ROOT/.package/tasks"
+          PKG_DIR="$ROOT/.package/tarefas"
 
           rm -rf "$OUT_DIR" "$PKG_DIR"
           mkdir -p "$OUT_DIR" "$PKG_DIR"
 
-          # instala deps dentro do package dir
           python -m pip install --upgrade pip
           if [ -f "$REQ_FILE" ]; then
             python -m pip install -r "$REQ_FILE" -t "$PKG_DIR"
           fi
 
-          # copia o código da lambda para a RAIZ do zip (handler.py no root)
           cp -R "$SRC_DIR/"* "$PKG_DIR/"
-
-          # zipa tudo
           (cd "$PKG_DIR" && zip -qr "$OUT_DIR/tasks.zip" .)
 
           echo "Built: $OUT_DIR/tasks.zip"
@@ -79,30 +61,5 @@ jobs:
       - name: Upload Lambda zip to S3
         run: |
           set -euo pipefail
-          aws s3 cp build/tasks.zip "s3://${TF_VAR_artifacts_bucket}/lambdas/tasks/${ARTIFACT_VERSION}.zip"
-          aws s3 cp build/tasks.zip "s3://${TF_VAR_artifacts_bucket}/lambdas/tasks/latest.zip"
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.6.6"
-
-      - name: Terraform Init (todo-infra env dev)
-        working-directory: todo-infra/todo-infra/infra/envs/dev
-        run: terraform init
-
-      - name: Terraform Plan
-        working-directory: todo-infra/todo-infra/infra/envs/dev
-        run: |
-          set -euo pipefail
-          terraform plan \
-            -var="lambda_artifact_version=${ARTIFACT_VERSION}" \
-            -out=tfplan
-
-      - name: Terraform Apply
-        working-directory: todo-infra/todo-infra/infra/envs/dev
-        run: terraform apply -auto-approve tfplan
-
-      - name: Show Outputs
-        working-directory: todo-infra/todo-infra/infra/envs/dev
-        run: terraform output
+          aws s3 cp build/tasks.zip "s3://${{ env.ARTIFACTS_BUCKET }}/lambdas/tasks/${ARTIFACT_VERSION}.zip"
+          aws s3 cp build/tasks.zip "s3://${{ env.ARTIFACTS_BUCKET }}/lambdas/tasks/latest.zip"

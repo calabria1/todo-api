@@ -15,44 +15,43 @@ _repo = TaskRepository(RepoConfig(table_name=TABLE_NAME))
 def lambda_handler(event: Dict[str, Any], context: Any):
     req = parse_http_api_event(event)
 
-    # /tasks e /tasks/{id}
-    task_id = (req.path_params or {}).get("id")
+    # /tarefas e /tarefas/{id}
+    tarefa_id = (req.path_params or {}).get("id")
 
     try:
-        if req.method == "POST" and req.path == "/tasks":
+        if req.method == "POST" and req.path == "/tarefas":
             validate_payload(req.body_json, creating=True)
-            created = _repo.create(req.body_json)
-            return response(201, created)
+            criada = _repo.create(req.body_json)
+            return response(201, criada)
 
-        if req.method == "GET" and req.path == "/tasks":
+        if req.method == "GET" and req.path == "/tarefas":
             return response(200, _repo.list_all())
 
-        if req.method == "GET" and task_id:
-            item = _repo.get(task_id)
+        if req.method == "GET" and tarefa_id:
+            item = _repo.get(tarefa_id)
             if not item:
-                return response(404, {"message": "Task not found"})
+                return response(404, {"mensagem": "Tarefa não encontrada"})
             return response(200, item)
 
-        if req.method == "PUT" and task_id:
+        if req.method == "PUT" and tarefa_id:
             validate_payload(req.body_json, creating=False)
-            updated = _repo.update(task_id, req.body_json)
-            if not updated:
-                return response(404, {"message": "Task not found"})
-            return response(200, updated)
+            atualizada = _repo.update(tarefa_id, req.body_json)
+            if not atualizada:
+                return response(404, {"mensagem": "Tarefa não encontrada"})
+            return response(200, atualizada)
 
-        if req.method == "DELETE" and task_id:
-            ok = _repo.delete(task_id)
+        if req.method == "DELETE" and tarefa_id:
+            ok = _repo.delete(tarefa_id)
             if not ok:
-                return response(404, {"message": "Task not found"})
+                return response(404, {"mensagem": "Tarefa não encontrada"})
             return response(204, None)
 
         # OPTIONS (CORS preflight)
         if req.method == "OPTIONS":
             return response(204, None)
 
-        return response(404, {"message": "Route not found"})
+        return response(404, {"mensagem": "Rota não encontrada"})
     except ValueError as e:
-        return response(400, {"message": str(e)})
+        return response(400, {"mensagem": str(e)})
     except Exception as e:
-        # Mantém simples; depois podemos adicionar logs melhores
-        return response(500, {"message": "Internal error", "detail": str(e)})
+        return response(500, {"mensagem": "Erro interno", "detalhe": str(e)})
