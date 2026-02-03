@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: todo-infra
+        working-directory: todo-infra/todo-infra
     env:
       TF_IN_AUTOMATION: true
       AWS_REGION: ${{ secrets.AWS_REGION }}
