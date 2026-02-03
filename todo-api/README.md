@@ -51,3 +51,20 @@ bash scripts/build.sh
 ```
 
 O artefato sai em: `dist/tasks.zip`
+
+## Deploy para AWS
+Antes do deploy, garanta que a função Lambda já exista (criada via `todo-infra`) e tenha permissões para acessar a tabela DynamoDB.
+
+Linux/Mac:
+```bash
+export LAMBDA_FUNCTION_NAME="todo-dev-tasks-handler"
+export AWS_REGION="us-east-1"  # opcional se já estiver configurado
+bash scripts/deploy.sh
+```
+
+Windows PowerShell:
+```powershell
+$env:LAMBDA_FUNCTION_NAME="todo-dev-tasks-handler"
+$env:AWS_REGION="us-east-1"  # opcional se já estiver configurado
+./scripts/deploy.ps1
+```
