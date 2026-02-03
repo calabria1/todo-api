@@ -1,11 +1,11 @@
-name: Deploy (Lambda + Terraform)
+name: Deploy API (Lambda + Terraform)
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - "services/**"
+      - "todo-api/**"
       - ".github/workflows/terraform.yml"
 
 permissions:
@@ -20,20 +20,19 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
-      # 1) Repo atual (todo-api)
+      # 1) Checkout do repo atual (todo-api)
       - name: Checkout todo-api
         uses: actions/checkout@v4
 
-      # 2) Repo infra (todo-infra) - ESSENCIAL para não quebrar os paths
+      # 2) Checkout do repo todo-infra (PUBLICO -> sem token)
       - name: Checkout todo-infra
         uses: actions/checkout@v4
         with:
           repository: SUAORG/todo-infra
           path: todo-infra
-          token: ${{ secrets.GH_PAT }}
 
-      # 3) Debug (deixe até estabilizar; depois pode remover)
-      - name: Debug paths
+      # 3) Debug (pode remover depois)
+      - name: Debug structure
         run: |
           echo "== ROOT =="
           pwd
@@ -41,7 +40,12 @@ jobs:
           echo "== todo-infra =="
           ls -la todo-infra
           echo "== find package script =="
-          find . -maxdepth 8 -type f -name "package_lambda.sh" -print
+          find todo-infra -maxdepth 6 -type f -name "package_lambda.sh" -print
+          echo "== find tfvars =="
+          find todo-infra -maxdepth 8 -type f -name "terraform.tfvars" -print
+          echo "== list lambda src =="
+          ls -la todo-api/services/tasks || true
+          ls -la todo-api/services/tasks/src || true
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -54,17 +58,20 @@ jobs:
         with:
           terraform_version: 1.6.0
 
-      # 4) Package Lambda zip (usando o script do todo-infra)
+      # 4) Package Lambda ZIP usando o script do todo-infra
       - name: Package Lambda (tasks)
         run: |
-          cp -f services/tasks/requirements.txt services/tasks/src/requirements.txt || true
+          # garante requirements no local que o script costuma ler
+          cp -f todo-api/services/tasks/requirements.txt todo-api/services/tasks/src/requirements.txt || true
+
           chmod +x todo-infra/todo-infra/infra/scripts/package_lambda.sh
           mkdir -p build
-          LAMBDA_SRC_DIR=services/tasks/src \
+
+          LAMBDA_SRC_DIR=todo-api/services/tasks/src \
           ZIP_PATH=build/tasks.zip \
           todo-infra/todo-infra/infra/scripts/package_lambda.sh
 
-      # 5) Upload do zip para o bucket de artifacts (bucket vem do tfvars do todo-infra)
+      # 5) Upload do ZIP pro bucket definido no todo-infra tfvars
       - name: Upload Lambda artifact to S3
         run: |
           TFVARS="todo-infra/todo-infra/infra/envs/dev/terraform.tfvars"
@@ -76,7 +83,7 @@ jobs:
 
           aws s3 cp build/tasks.zip "s3://${BUCKET}/lambdas/tasks/${GITHUB_SHA}.zip"
 
-      # 6) Terraform apply no repo infra (aponta pro artifact version do commit)
+      # 6) Terraform apply no repo todo-infra, apontando a versão do artifact
       - name: Terraform init (dev)
         run: terraform -chdir=todo-infra/todo-infra/infra/envs/dev init
 
