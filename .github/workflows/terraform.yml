@@ -8,6 +8,7 @@ on:
     paths:
       - "infra/**"
       - "services/**"
+      - "todo-api/**"
       - ".github/workflows/terraform.yml"
 
 permissions:
