@@ -10,7 +10,7 @@ Código da **API (CRUD de tarefas)** para rodar em **AWS Lambda** atrás de um *
 - `DELETE /tasks/{id}`
 
 ## Variáveis de ambiente
-- `TABLE_NAME` (obrigatória): nome da tabela DynamoDB.
+- `TABLE_NAME` (obrigatóriaa): nome da tabela DynamoDB.
 
 ## Requisitos
 - Python **3.11+**
